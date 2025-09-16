@@ -521,11 +521,38 @@ class finfo:
         if newdtype is not dtype:
             dtypes.append(newdtype)
             dtype = newdtype
-        if not issubclass(dtype, numeric.inexact):
-            raise ValueError(f"data type {dtype!r} not inexact")
-        obj = cls._finfo_cache.get(dtype)
+
+        dtype_meta = getattr(dtype, 'dtype', None)
+        if dtype_meta is not None and hasattr(dtype_meta, '_is_inexact_dtype'):
+            # This is a custom dtype with DType API
+            try:
+                is_inexact = dtype_meta._is_inexact_dtype()
+                if not is_inexact:
+                    raise ValueError("data type %r not inexact" % (dtype))
+            except (AttributeError, TypeError):
+                # Fall back to old behavior
+                if not issubclass(dtype, numeric.inexact):
+                    raise ValueError("data type %r not inexact" % (dtype))
+        else:
+            # Legacy behavior for built-in types
+            if not issubclass(dtype, numeric.inexact):
+                raise ValueError("data type %r not inexact" % (dtype))
+
+        obj = cls._finfo_cache.get(dtype, None)
         if obj is not None:
             return obj
+
+        # NEW: Check if custom dtype provides finfo computation
+        if dtype_meta is not None and hasattr(dtype_meta, '_get_finfo'):
+            try:
+                custom_finfo = dtype_meta._get_finfo(dtype)
+                if custom_finfo is not None:
+                    # Cache and return custom finfo
+                    for dt in dtypes:
+                        cls._finfo_cache[dt] = custom_finfo
+                    return custom_finfo
+            except (AttributeError, TypeError):
+                pass  # Fall back to default behavior
         if not issubclass(dtype, numeric.floating):
             newdtype = _convert_to_float[dtype]
             if newdtype is not dtype:

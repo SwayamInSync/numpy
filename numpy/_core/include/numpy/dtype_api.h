@@ -368,6 +368,10 @@ typedef int (PyArrayMethod_PromoterFunction)(PyObject *ufunc,
 #define NPY_DT_get_fill_zero_loop 10
 #define NPY_DT_finalize_descr 11
 
+// NEW SLOTS FOR FINFO SUPPORT
+#define NPY_DT_is_inexact 12
+#define NPY_DT_get_finfo 13
+
 // These PyArray_ArrFunc slots will be deprecated and replaced eventually
 // getitem and setitem can be defined as a performance optimization;
 // by default the user dtypes call `legacy_getitem_using_DType` and
@@ -476,5 +480,19 @@ typedef PyArray_Descr *(PyArrayDTypeMeta_FinalizeDescriptor)(PyArray_Descr *dtyp
  */
 typedef int(PyArrayDTypeMeta_SetItem)(PyArray_Descr *, PyObject *, char *);
 typedef PyObject *(PyArrayDTypeMeta_GetItem)(PyArray_Descr *, char *);
+
+/*
+ * Function to determine if a dtype represents inexact (floating-point) values.
+ * Returns 1 if inexact, 0 if exact, -1 on error.
+ * This replaces the hardcoded issubclass(dtype, numeric.inexact) check.
+ */
+typedef int (PyArrayDTypeMeta_IsInexact)(PyArray_DTypeMeta *cls);
+
+/*
+ * Function to compute finfo for a custom dtype.
+ * Should return a Python object with finfo attributes (precision, eps, max, etc.)
+ * or NULL to fall back to default behavior.
+ */
+typedef PyObject *(PyArrayDTypeMeta_GetFinfo)(PyArray_DTypeMeta *cls, PyArray_Descr *descr);
 
 #endif  /* NUMPY_CORE_INCLUDE_NUMPY___DTYPE_API_H_ */
