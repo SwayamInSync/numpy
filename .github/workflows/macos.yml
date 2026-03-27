@@ -184,12 +184,25 @@ jobs:
         run: |
           export LDFLAGS="-L$(brew --prefix libomp)/lib"
           export CFLAGS="-I$(brew --prefix libomp)/include"
-          pip install "numpy-quaddtype @ git+https://github.com/SwayamInSync/numpy-quaddtype.git@promoter-fix" --no-build-isolation -v
+          pip install --no-cache-dir --force-reinstall --no-deps \
+            "numpy-quaddtype @ git+https://github.com/SwayamInSync/numpy-quaddtype.git@promoter-fix" \
+            --no-build-isolation -v
 
       - name: Verify quaddtype is installed
         working-directory: /tmp
         run: |
           python -c "from numpy_quaddtype import QuadPrecDType; print('QuadPrecDType loaded successfully')"
+          pip show numpy-quaddtype
+          python -c "
+          import numpy as np
+          from numpy_quaddtype import QuadPrecDType
+          # Quick sanity check: remainder(timedelta64, int) must raise TypeError
+          try:
+              np.remainder(np.timedelta64(7, 'Y'), 15)
+              print('BUG: remainder(timedelta64, int) did not raise TypeError')
+          except TypeError:
+              print('OK: promoter fix is working correctly')
+          "
 
       - name: Run NumPy tests
         working-directory: /tmp
