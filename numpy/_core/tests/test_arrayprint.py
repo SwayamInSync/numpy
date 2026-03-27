@@ -1336,15 +1336,16 @@ def test_user_defined_floating_dtype_printing_does_not_corrupt_precision():
     # quaddtype versions will fix it.)
     from importlib.metadata import version
 
-    try:
-        quaddtype_version = version("numpy_quaddtype")
-    except Exception:
-        pytest.skip("numpy_quaddtype not installed")
-    else:
-        if _pep440.Version(quaddtype_version) <= _pep440.Version("1.0.0"):
-            pytest.skip("critical bug in quaddtype during import")
+    # try:
+    #     quaddtype_version = version("numpy_quaddtype")
+    # except Exception:
+    #     pytest.skip("numpy_quaddtype not installed")
+    # else:
+    #     if _pep440.Version(quaddtype_version) <= _pep440.Version("1.0.0"):
+    #         pytest.skip("critical bug in quaddtype during import")
 
     numpy_quaddtype = pytest.importorskip("numpy_quaddtype")
+    from numpy_quaddtype import QuadPrecDType
 
     pi_str = "3.14159265358979323846264338327950288"
     arr = np.array([pi_str], dtype=QuadPrecDType())
