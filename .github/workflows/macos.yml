@@ -154,3 +154,43 @@ jobs:
         run: |
           pip install pytest-run-parallel==0.8.2
           spin test -p 4 -- -sv --timeout=600 --durations=10
+
+  quaddtype_integration:
+    name: Test with numpy-quaddtype (promoter-fix)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+          fetch-tags: true
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install NumPy build and test dependencies
+        run: |
+          pip install -r requirements/build_requirements.txt
+          pip install -r requirements/test_requirements.txt
+
+      - name: Build and install NumPy from source
+        run: pip install . --no-build-isolation
+
+      - name: Install quaddtype build dependencies
+        run: brew install cmake libomp
+
+      - name: Install numpy-quaddtype from promoter-fix branch
+        run: |
+          export LDFLAGS="-L$(brew --prefix libomp)/lib"
+          export CFLAGS="-I$(brew --prefix libomp)/include"
+          pip install "numpy-quaddtype @ git+https://github.com/SwayamInSync/numpy-quaddtype.git@promoter-fix" --no-build-isolation -v
+
+      - name: Verify quaddtype is installed
+        run: |
+          python -c "from numpy_quaddtype import QuadPrecDType; print('QuadPrecDType loaded successfully')"
+
+      - name: Run NumPy tests
+        run: |
+          cd /tmp
+          python -m pytest --pyargs numpy -x --timeout=600 --durations=10
