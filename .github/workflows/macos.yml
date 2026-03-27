@@ -187,10 +187,11 @@ jobs:
           pip install "numpy-quaddtype @ git+https://github.com/SwayamInSync/numpy-quaddtype.git@promoter-fix" --no-build-isolation -v
 
       - name: Verify quaddtype is installed
+        working-directory: /tmp
         run: |
           python -c "from numpy_quaddtype import QuadPrecDType; print('QuadPrecDType loaded successfully')"
 
       - name: Run NumPy tests
+        working-directory: /tmp
         run: |
-          cd /tmp
           python -m pytest --pyargs numpy -x --timeout=600 --durations=10
