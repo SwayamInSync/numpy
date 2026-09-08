@@ -34,6 +34,7 @@ from numpy._core._rational_tests import rational, rational2
 from numpy._core.multiarray import _get_ndarray_c_version, dot
 from numpy._core.numeric import _dot_fallback, _vdot_fallback
 from numpy._core.tests._locales import CommaDecimalPointLocale
+from numpy._core.tests._quaddtype import importorskip_quaddtype
 from numpy.exceptions import AxisError, ComplexWarning
 from numpy.lib import stride_tricks
 from numpy.lib.recfunctions import repack_fields
@@ -8436,7 +8437,6 @@ class TestDotFamilyFallback:
         assert _vdot_fallback(ac, bc) == np.vdot(ac, bc)
 
     def test_quaddtype_dot_family(self):
-        from numpy._core.tests._quaddtype import importorskip_quaddtype
         numpy_quaddtype = importorskip_quaddtype()
         qd = numpy_quaddtype.QuadPrecDType()
 

@@ -2,7 +2,7 @@ import pytest
 
 from numpy._utils import _pep440
 
-MIN_VERSION = "1.2"
+MIN_VERSION = "1.1"
 
 
 def importorskip_quaddtype():

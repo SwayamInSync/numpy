@@ -8,6 +8,7 @@ from hypothesis.extra import numpy as hynp
 
 import numpy as np
 from numpy._core.arrayprint import _typelessdata
+from numpy._core.tests._quaddtype import importorskip_quaddtype
 from numpy.testing import (
     HAS_REFCOUNT,
     IS_WASM,
@@ -1330,7 +1331,6 @@ def test_user_defined_floating_dtype_printing_does_not_corrupt_precision():
     for user-defined floating dtypes, which would silently truncate
     precision to float64.
     """
-    from numpy._core.tests._quaddtype import importorskip_quaddtype
     numpy_quaddtype = importorskip_quaddtype()
     QuadPrecDType = numpy_quaddtype.QuadPrecDType
 
