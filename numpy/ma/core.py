@@ -2320,7 +2320,7 @@ def masked_object(x, value, copy=True, shrink=True):
     else:
         condition = umath.equal(np.asarray(x), value)
         mask = nomask
-    mask = mask_or(mask, make_mask(condition, shrink=shrink))
+    mask = mask_or(mask, make_mask(condition, shrink=shrink), shrink=shrink)
     return masked_array(x, mask=mask, copy=copy, fill_value=value)
 
 
@@ -3037,7 +3037,13 @@ class MaskedArray(ndarray):
         _optinfo.update(getattr(obj, '_basedict', {}))
         if not isinstance(obj, MaskedArray):
             _optinfo.update(getattr(obj, '__dict__', {}))
-        _dict = {'_fill_value': getattr(obj, '_fill_value', None),
+        _fill_value = getattr(obj, '_fill_value', None)
+        if _fill_value is not None and getattr(obj, 'dtype', None) != self.dtype:
+            try:
+                _fill_value = _check_fill_value(_fill_value, self.dtype)
+            except (TypeError, ValueError, OverflowError):
+                _fill_value = None
+        _dict = {'_fill_value': _fill_value,
                      '_hardmask': getattr(obj, '_hardmask', False),
                      '_sharedmask': getattr(obj, '_sharedmask', False),
                      '_isfield': getattr(obj, '_isfield', False),
@@ -3254,6 +3260,28 @@ class MaskedArray(ndarray):
         memory. Therefore if ``a`` is C-ordered versus fortran-ordered, versus
         defined as a slice or transpose, etc., the view may give different
         results.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> a = np.ma.array([1.0, 2.0, 3.0], mask=[0, 1, 0])
+        >>> a
+        masked_array(data=[1.0, --, 3.0],
+                     mask=[False,  True, False],
+               fill_value=1e+20)
+
+        Use ``fill_value`` to set a custom fill value on the view without
+        copying the data:
+
+        >>> a.view(fill_value=-999.0)
+        masked_array(data=[1.0, --, 3.0],
+                     mask=[False,  True, False],
+               fill_value=-999.0)
+
+        View as a plain :class:`numpy.ndarray` — the mask is not preserved:
+
+        >>> a.view(np.ndarray)
+        array([1., 2., 3.])
         """
 
         if type is None and (isinstance(dtype, builtins.type)
@@ -8451,6 +8479,8 @@ def convolve(a, v, mode='full', propagate_mask=True):
     See Also
     --------
     numpy.convolve : Equivalent function in the top-level NumPy module.
+    numpy.ma.correlate : Cross-correlation of two 1-D sequences; see its
+        examples for ``propagate_mask`` behaviour.
     """
     return _convolve_or_correlate(np.convolve, a, v, mode, propagate_mask)
 
@@ -8471,9 +8501,8 @@ def allequal(a, b, fill_value=True):
     Returns
     -------
     y : bool
-        Returns True if the two arrays are equal within the given
-        tolerance, False otherwise. If either array contains NaN,
-        then False is returned.
+        Returns True if the arrays are equal. If either array contains
+        NaN, then False is returned.
 
     See Also
     --------

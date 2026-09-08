@@ -53,7 +53,26 @@ typedef struct npy_interned_str_struct {
     PyObject *imag;
     PyObject *sort;
     PyObject *argsort;
+    PyObject *as_arrays;
+    PyObject *wrap;
+    PyObject *subok;
+    PyObject *to_scalar;
+    PyObject *partition;
+    PyObject *argpartition;
     PyObject *_set_dtype;
+    PyObject *conjugate;
+    PyObject *astimezone;
+    PyObject *value;
+    PyObject *year;
+    PyObject *month;
+    PyObject *day;
+    PyObject *hour;
+    PyObject *minute;
+    PyObject *second;
+    PyObject *microsecond;
+    PyObject *tzinfo;
+    PyObject *utcoffset;
+    PyObject *total_seconds;
 } npy_interned_str_struct;
 
 /*
@@ -133,9 +152,23 @@ typedef struct npy_static_pydata_struct {
     PyObject *format_options;
 
     /*
+     * Context variable set to True while the legacy ufunc type resolvers
+     * run for promotion, to suppress their deprecation warnings (the
+     * resolution step warns on every call).
+     */
+    PyObject *legacy_resolver_promoting;
+
+    /*
      * Used in the __array__ internals to avoid building a tuple inline
      */
     PyObject *kwnames_is_copy;
+
+    /*
+     * Used by _wrapit to call the array converter's as_arrays/wrap
+     * methods without building kwnames tuples inline
+     */
+    PyObject *wrapit_kwnames_subok;
+    PyObject *wrapit_kwnames_to_scalar;
 
     /*
      * Used in __imatmul__ to avoid building tuples inline
@@ -195,10 +228,6 @@ typedef struct npy_static_cdata_struct {
      */
     npy_int16 _letter_to_num['z' + 1 - '?'];
 } npy_static_cdata_struct;
-
-NPY_VISIBILITY_HIDDEN extern npy_interned_str_struct npy_interned_str;
-NPY_VISIBILITY_HIDDEN extern npy_static_pydata_struct npy_static_pydata;
-NPY_VISIBILITY_HIDDEN extern npy_static_cdata_struct npy_static_cdata;
 
 #ifdef __cplusplus
 }

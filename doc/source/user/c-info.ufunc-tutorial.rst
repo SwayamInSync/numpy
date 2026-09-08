@@ -149,12 +149,7 @@ how to create the module.
 
         PyMODINIT_FUNC PyInit_spam(void)
         {
-            PyObject *m;
-            m = PyModule_Create(&moduledef);
-            if (!m) {
-                return NULL;
-            }
-            return m;
+            return PyModule_Create(&moduledef);
         }
 
 To create the module, one proceeds as one would for a Python package, creating
@@ -590,7 +585,7 @@ is the primary thing that must be changed to create your own ufunc.
                 return NULL;
             }
 
-            logit = PyUFunc_FromFuncAndData(funcs, NULL, types, 4, 1, 1,
+            logit = PyUFunc_FromFuncAndData(funcs, NULL, types, 3, 1, 1,
                                             PyUFunc_None, "logit",
                                             "logit_docstring", 0);
 
@@ -947,7 +942,7 @@ Numpy ufuncs. For example:
             return log(p/(1-p))
 
 Here ``log`` is taken from the C standard library. The ``cdivision``
-dectorator and ``noexcept`` exception specification are Cython extensions
+decorator and ``noexcept`` exception specification are Cython extensions
 and ensure that a divide by zero will not raise a Python exception.
 They are useful for this specific example but not necessary for ufuncs
 generally.
