@@ -1016,12 +1016,13 @@ PyArray_MatrixProduct2(PyObject *op1, PyObject *op2, PyArrayObject* out)
 
     if (PyDataType_GetArrFuncs(typec)->dotfunc == NULL) {
         Py_DECREF(typec);
-        if (npy_cache_import_runtime("numpy._core.numeric", "_dot_fallback",
-                                     &npy_runtime_imports._dot_fallback) == -1) {
+        if (npy_cache_import_runtime(
+                "numpy._core.numeric", "_dot_fallback",
+                &_npy_module_state->runtime_imports._dot_fallback) == -1) {
             return NULL;
         }
         return PyObject_CallFunctionObjArgs(
-                npy_runtime_imports._dot_fallback, op1, op2,
+                _npy_module_state->runtime_imports._dot_fallback, op1, op2,
                 out != NULL ? (PyObject *)out : Py_None, NULL);
     }
 
@@ -2658,12 +2659,14 @@ array_vdot(PyObject *NPY_UNUSED(dummy), PyObject *const *args, Py_ssize_t len_ar
 
     if (PyDataType_GetArrFuncs(type)->dotfunc == NULL) {
         Py_DECREF(type);
-        if (npy_cache_import_runtime("numpy._core.numeric", "_vdot_fallback",
-                                     &npy_runtime_imports._vdot_fallback) == -1) {
+        if (npy_cache_import_runtime(
+                "numpy._core.numeric", "_vdot_fallback",
+                &_npy_module_state->runtime_imports._vdot_fallback) == -1) {
             return NULL;
         }
         return PyObject_CallFunctionObjArgs(
-                npy_runtime_imports._vdot_fallback, op1, op2, NULL);
+                _npy_module_state->runtime_imports._vdot_fallback,
+                op1, op2, NULL);
     }
 
     Py_INCREF(type);
