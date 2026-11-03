@@ -1221,6 +1221,24 @@ sfloat_init_ufuncs(void) {
         return -1;
     }
 
+    /*
+     * A promoter selected only by the output DType, so that
+     * `np.add(float_arr, float_arr, dtype=SFloat)` works.
+     */
+    PyArray_DTypeMeta *any_DType = (PyArray_DTypeMeta *)&PyArrayDescr_Type;
+    PyArray_DTypeMeta *out_only_dtypes[3] = {
+            any_DType, any_DType, &PyArray_SFloatDType};
+    PyObject *out_only_promoter = PyCapsule_New(
+            &promote_to_sfloat, "numpy._ufunc_promoter", NULL);
+    if (out_only_promoter == NULL) {
+        return -1;
+    }
+    res = sfloat_add_loop("add", 3, out_only_dtypes, out_only_promoter);
+    Py_DECREF(out_only_promoter);
+    if (res < 0) {
+        return -1;
+    }
+
     return 0;
 }
 
