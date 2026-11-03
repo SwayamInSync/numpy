@@ -276,6 +276,26 @@ class TestSFloat:
                          b.astype(res.dtype).view(np.float64))
         assert_array_equal(res.view(np.float64), expected_view)
 
+    @pytest.mark.parametrize("kwargs", [
+        {"dtype": SF}, {"signature": (None, None, SF)}])
+    def test_output_only_promoter(self, kwargs):
+        res = np.add(np.array([1., 2.]), np.array([3., 4.]), **kwargs)
+        assert res.dtype == SF(1.)
+        assert_array_equal(res.view(np.float64), [4., 6.])
+
+    @pytest.mark.parametrize("func, expected", [
+        (lambda: np.array([1.], dtype=np.longdouble) + 1., np.longdouble),
+        (lambda: np.array([1], dtype=np.int8) + 1, np.int8),
+        (lambda: np.array([1.], dtype=np.float32) + 1., np.float32),
+        (lambda: np.add(np.array([1.]), np.array([2.])), np.float64),
+        (lambda: np.add(np.array([1]), np.array([2.]), out=np.empty(1)),
+         np.float64),
+    ])
+    def test_output_only_promoter_needs_requested_output(self, func, expected):
+        # The `add` promoter registered for `(Any, Any, SFloat)` must not
+        # take over promotion when no output DType is requested.
+        assert func().dtype == expected
+
     def test_addition_cast_safety(self):
         """The addition method is special for the scaled float, because it
         includes the "cast" between different factors, thus cast-safety
