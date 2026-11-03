@@ -353,6 +353,24 @@ PyUFunc_AddLoopsFromSpecs(PyUFunc_LoopSlot *slots)
 }
 
 
+/*
+ * Whether every input entry of a registered DType tuple matches any DType.
+ * Such a promoter can only be selected by its output DTypes, so it must only
+ * apply when those are requested; otherwise it would take over all promotion.
+ */
+static npy_bool
+inputs_unconstrained(PyObject *dtypes, int nin)
+{
+    for (int i = 0; i < nin; i++) {
+        PyObject *dtype = PyTuple_GET_ITEM(dtypes, i);
+        if (dtype != Py_None && dtype != (PyObject *)&PyArrayDescr_Type) {
+            return NPY_FALSE;
+        }
+    }
+    return NPY_TRUE;
+}
+
+
 /**
  * Resolves the implementation to use, this uses typical multiple dispatching
  * methods of finding the best matching implementation or resolver.
@@ -442,7 +460,16 @@ resolve_implementation_info(PyUFuncObject *ufunc,
             assert((PyObject *)given_dtype != Py_None);
             if (given_dtype == NULL) {
                 if (i >= nin) {
-                    /* Unspecified out always matches (see below for inputs) */
+                    /*
+                     * Unspecified out matches (see below for inputs), unless
+                     * the resolver selects only by this output DType.
+                     */
+                    if (resolver_dtype != (PyArray_DTypeMeta *)Py_None &&
+                            !NPY_DT_is_abstract(resolver_dtype) &&
+                            inputs_unconstrained(curr_dtypes, nin)) {
+                        matches = NPY_FALSE;
+                        break;
+                    }
                     continue;
                 }
                 assert(i == 0);

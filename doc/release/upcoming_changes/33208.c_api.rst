@@ -1,0 +1,7 @@
+Promoters for a requested output DType
+--------------------------------------
+A promoter registered with ``PyUFunc_AddPromoter`` whose input DTypes are all
+``None`` or ``np.dtype`` and whose output DType is concrete, such as
+``(np.dtype, np.dtype, MyDType)``, can now be used to support
+``np.add(a, b, dtype=MyDType)`` for inputs of other DTypes without affecting
+calls that do not request ``MyDType``.

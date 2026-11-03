@@ -12,6 +12,12 @@ from numpy.testing import assert_array_equal
 SF = _get_sfloat_dtype()
 
 
+def _add_at_int8():
+    a = np.zeros(2, dtype=np.int8)
+    np.add.at(a, [0, 0], 1)
+    return a
+
+
 class TestSFloat:
     def _get_array(self, scaling, aligned=True):
         if not aligned:
@@ -275,6 +281,51 @@ class TestSFloat:
         expected_view = (a.astype(res.dtype).view(np.float64) +
                          b.astype(res.dtype).view(np.float64))
         assert_array_equal(res.view(np.float64), expected_view)
+
+    @pytest.mark.parametrize("kwargs", [
+        pytest.param({"dtype": SF}, id="dtype"),
+        pytest.param({"signature": (None, None, SF)}, id="signature"),
+    ])
+    def test_output_only_promoter(self, kwargs):
+        res = np.add(np.array([1., 2.]), np.array([3., 4.]), **kwargs)
+        assert res.dtype == SF(1.)
+        assert_array_equal(res.view(np.float64), [4., 6.])
+
+    def test_output_only_promoter_reduce(self):
+        res = np.add.reduce(np.array([1., 2., 3.]), dtype=SF, keepdims=True)
+        assert res.dtype == SF(1.)
+        assert_array_equal(res.view(np.float64), [6.])
+
+    @pytest.mark.xfail(raises=TypeError, strict=True,
+        reason="accumulate and reduceat use the operand descriptor for the "
+               "loop, which is wrong after a view cast to SFloat")
+    @pytest.mark.parametrize("method", [
+        pytest.param(lambda a: np.add.accumulate(a, dtype=SF), id="accumulate"),
+        pytest.param(lambda a: np.add.reduceat(a, [0, 2], dtype=SF),
+                     id="reduceat"),
+    ])
+    def test_output_only_promoter_accumulate(self, method):
+        method(np.array([1., 2., 3.]))
+
+    @pytest.mark.parametrize("func, expected", [
+        pytest.param(lambda: np.array([1.], dtype=np.longdouble) + 1.,
+                     np.longdouble, id="longdouble+float"),
+        pytest.param(lambda: np.array([1], dtype=np.int8) + 1,
+                     np.int8, id="int8+int"),
+        pytest.param(lambda: np.array([1.], dtype=np.float32) + 1.,
+                     np.float32, id="float32+float"),
+        pytest.param(lambda: np.add(np.array([1], dtype=np.int8),
+                                    np.array([2.], dtype=np.float32)),
+                     np.float32, id="int8+float32"),
+        pytest.param(lambda: np.add(np.array([1]), np.array([2.]),
+                                    out=np.empty(1)),
+                     np.float64, id="out"),
+        pytest.param(_add_at_int8, np.int8, id="at"),
+    ])
+    def test_output_only_promoter_needs_requested_output(self, func, expected):
+        # The `add` promoter registered for `(Any, Any, SFloat)` must not
+        # take over promotion when no output DType is requested.
+        assert func().dtype == expected
 
     def test_addition_cast_safety(self):
         """The addition method is special for the scaled float, because it
