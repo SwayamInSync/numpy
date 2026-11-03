@@ -2089,6 +2089,13 @@ with the rest of the ArrayMethod API.
    passed the operation and requested DType signatures and can mutate it to
    attempt a new search for a matching loop/promoter.
 
+   If every input entry of ``DType_tuple`` is ``None`` or ``np.dtype`` (the
+   promoter matches any input) and an output entry is a concrete DType, the
+   promoter is only used when that output DType is requested, for example
+   with ``dtype=`` or ``signature=``. This allows supporting
+   ``np.add(a, b, dtype=MyDType)`` for inputs of other DTypes without
+   changing their promotion when no output DType is requested.
+
 .. c:type:: int (PyArrayMethod_PromoterFunction)(PyObject *ufunc, \
                 PyArray_DTypeMeta *const op_dtypes[], \
                 PyArray_DTypeMeta *const signature[], \
