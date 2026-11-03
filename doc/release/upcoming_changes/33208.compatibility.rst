@@ -1,0 +1,9 @@
+Promoters with only an output DType need that output to be requested
+--------------------------------------------------------------------
+A promoter whose input DTypes are all ``None`` or ``np.dtype`` and whose output
+DType is concrete is now only used when that output DType is requested with
+``dtype=`` or ``signature=``. Previously it matched every call without a
+requested output and so took over the promotion of DTypes it does not own.
+A promoter that relied on this, such as ``(np.dtype, np.dtype, np.bool)``,
+must name its own DType in an input, for example ``(MyDType, np.dtype, np.bool)``
+and ``(np.dtype, MyDType, np.bool)``.
