@@ -2078,10 +2078,6 @@ with the rest of the ArrayMethod API.
 .. c:function:: int PyUFunc_AddPromoter( \
                         PyObject *ufunc, PyObject *DType_tuple, PyObject *promoter)
 
-   Note that currently the output dtypes are always ``NULL`` unless they are
-   also part of the signature. This is an implementation detail and could
-   change in the future. However, in general promoters should not have a
-   need for output dtypes.
    Register a new promoter for a ufunc. The first argument is the ufunc to
    register the promoter with. The second argument is a Python tuple containing
    DTypes or None matching the number of inputs and outputs for the ufuncs. The
@@ -2089,12 +2085,17 @@ with the rest of the ArrayMethod API.
    passed the operation and requested DType signatures and can mutate it to
    attempt a new search for a matching loop/promoter.
 
-   If every input entry of ``DType_tuple`` is ``None`` or ``np.dtype`` (the
-   promoter matches any input) and an output entry is a concrete DType, the
-   promoter is only used when that output DType is requested, for example
-   with ``dtype=`` or ``signature=``. This allows supporting
+   Output DTypes are only known when they are requested with ``dtype=`` or
+   ``signature=`` (an ``out=`` array does not request its DType); otherwise
+   they are ``NULL`` and match any output entry of ``DType_tuple``. The
+   exception is a promoter whose input entries are all ``None`` or
+   ``np.dtype``: it can only be selected by its outputs, so it is only used
+   when each of its concrete output DTypes is requested. Such a promoter,
+   for example ``(np.dtype, np.dtype, MyDType)``, supports
    ``np.add(a, b, dtype=MyDType)`` for inputs of other DTypes without
-   changing their promotion when no output DType is requested.
+   changing their promotion otherwise. A promoter that should also apply
+   when no output DType is requested must name its DType in an input, as in
+   ``(MyDType, np.dtype, MyDType)``.
 
 .. c:type:: int (PyArrayMethod_PromoterFunction)(PyObject *ufunc, \
                 PyArray_DTypeMeta *const op_dtypes[], \
