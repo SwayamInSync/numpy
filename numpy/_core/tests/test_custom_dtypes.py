@@ -6,6 +6,7 @@ import numpy as np
 from numpy._core._multiarray_umath import (
     _discover_array_parameters as discover_array_params,
     _get_sfloat_dtype,
+    _set_sfloat_repack_pyscalars,
 )
 from numpy.testing import assert_array_equal
 
@@ -615,3 +616,70 @@ def test_structured_field_allowed():
     arr["a"] = [1., 2.]
     assert_array_equal(arr["a"].astype(np.float64), [1., 2.])
     assert np.dtype((SF(2.), 3)).subdtype[0] == SF(2.)
+
+
+@pytest.fixture(params=[False, True], ids=["default", "repack"])
+def repack_pyscalars(request):
+    previous = _set_sfloat_repack_pyscalars(request.param)
+    yield request.param
+    _set_sfloat_repack_pyscalars(previous)
+
+
+@pytest.mark.thread_unsafe(reason="toggles a flag on the global test DType")
+class TestRepackPyScalars:
+    # With NPY_DT_REPACK_PYSCALARS, Python scalars are converted directly to
+    # the descriptor the operation resolves, not to the default SF(1.).
+    def test_ufunc(self, repack_pyscalars):
+        a = np.array([3., 4.], dtype=SF(2.))
+        expected = np.hypot([3., 4.], 4.)
+        for args in [(a, 4.), (4., a)]:
+            if repack_pyscalars:
+                res = np.hypot(*args, casting="safe")
+                assert res.dtype == SF(2.)
+                assert_array_equal(res.astype(np.float64), expected)
+            else:
+                with pytest.raises(TypeError, match="from dtype"):
+                    np.hypot(*args, casting="safe")
+
+    def test_ufunc_at(self, repack_pyscalars):
+        a = np.array([3., 4.], dtype=SF(2.))
+        np.hypot.at(a, [0], 4.)
+        assert_array_equal(a.astype(np.float64), [5., 4.])
+
+    def test_resolve_dtypes(self, repack_pyscalars):
+        if repack_pyscalars:
+            res = np.hypot.resolve_dtypes((SF(2.), float, None), casting="safe")
+            assert res == (SF(2.),) * 3
+        else:
+            with pytest.raises(TypeError, match="from dtype"):
+                np.hypot.resolve_dtypes((SF(2.), float, None), casting="safe")
+
+    @pytest.mark.parametrize("casting", ["no", "equiv"])
+    def test_ufunc_strict_casting(self, repack_pyscalars, casting):
+        a = np.array([3., 4.], dtype=SF(2.))
+        with pytest.raises(TypeError):
+            np.hypot(a, 4., casting=casting)
+
+    def test_ufunc_array_operand_unchanged(self, repack_pyscalars):
+        a = np.array([3., 4.], dtype=SF(2.))
+        b = np.array(4., dtype=SF(1.))
+        with pytest.raises(TypeError, match="Cannot cast ufunc 'hypot' input 1"):
+            np.hypot(a, b, casting="safe")
+
+    def test_copyto(self, repack_pyscalars):
+        a = np.zeros(2, dtype=SF(2.))
+        if repack_pyscalars:
+            np.copyto(a, 3., casting="safe")
+            assert_array_equal(a.astype(np.float64), [3., 3.])
+        else:
+            with pytest.raises(TypeError, match="according to the rule"):
+                np.copyto(a, 3., casting="safe")
+
+    def test_full(self, repack_pyscalars):
+        # The SF(1.) to SF(1e-310) cast has a non-finite factor.
+        if repack_pyscalars:
+            res = np.full(2, 1e-310, dtype=SF(1e-310))
+            assert_array_equal(res.view(np.float64), [1., 1.])
+        else:
+            with pytest.raises(TypeError, match="non-finite factor"):
+                np.full(2, 1e-310, dtype=SF(1e-310))
