@@ -3740,6 +3740,27 @@ Flags that can be set on the ``PyArrayDTypeMeta_Spec`` to initialize the DType.
 
    Indicates the DType represents a numerical value.
 
+.. c:macro:: NPY_DT_REPACK_PYSCALARS
+
+   When a Python ``int``, ``float``, or ``complex`` is an input to a ufunc
+   whose loop uses this DType for that input, NumPy normally converts the
+   scalar to the DType's default descriptor before calling
+   ``resolve_descriptors``, and later casts it to the resolved descriptor.
+   With this flag, ``resolve_descriptors`` still sees the default
+   descriptor, but NumPy then converts the original Python scalar directly
+   to the resolved descriptor, so no cast from the default descriptor is
+   needed. ``np.copyto`` (and so ``np.full`` and ``np.ones``) likewise
+   converts a Python scalar directly to the destination descriptor.
+
+   This lets a parametric DType accept Python scalars when casts from its
+   default descriptor to other instances are lossy or not allowed.
+
+   NumPy versions before 2.6 reject this flag, so a DType that supports
+   them should only set it when ``PyArray_RUNTIME_VERSION >=
+   NPY_2_6_API_VERSION``.
+
+   .. versionadded:: 2.6
+
 
 .. _dtype-slots:
 
