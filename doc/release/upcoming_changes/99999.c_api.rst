@@ -1,8 +1,10 @@
 New ``NPY_DT_REPACK_PYSCALARS`` DType flag
 ------------------------------------------
 User DTypes can set the new ``NPY_DT_REPACK_PYSCALARS`` flag so that Python
-``int``, ``float``, and ``complex`` operands of ufuncs, and Python scalars
-passed to ``np.copyto``, ``np.full``, and ``np.ones``, are converted directly
-to the descriptor the operation resolves, instead of to the DType's default
-descriptor followed by a cast. This lets parametric DTypes accept Python
-scalars when casts from their default descriptor are lossy or not allowed.
+``int``, ``float``, and ``complex`` values are converted directly to the
+descriptor an operation uses, instead of to the descriptor discovered for the
+value followed by a cast. This applies to ufunc inputs (including
+``ufunc.at``), ``np.copyto`` and functions built on it such as ``np.full``
+and ``np.ones``, ``np.concatenate`` with ``axis=None``, and ``np.choose``.
+It lets parametric DTypes accept Python scalars when casts from their default
+descriptor are lossy or not allowed.
