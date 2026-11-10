@@ -4800,8 +4800,14 @@ resolve_descriptors(int nop,
         goto finish;
     }
     for (int i = 0; i < ufunc->nin; i++) {
-        if (repack_scalar[i] && npy_update_operand_for_scalar(
-                &operands[i], inputs == NULL ? NULL : inputs[i], dtypes[i],
+        if (!repack_scalar[i]) {
+            continue;
+        }
+        /* Otherwise keep the default descriptor and its validated cast */
+        PyArray_Descr *target = NPY_DTYPE(dtypes[i]) == signature[i] ?
+                dtypes[i] : original_descrs[i];
+        if (npy_update_operand_for_scalar(
+                &operands[i], inputs == NULL ? NULL : inputs[i], target,
                 casting) < 0) {
             goto finish;
         }
