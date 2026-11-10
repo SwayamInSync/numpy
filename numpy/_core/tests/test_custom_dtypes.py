@@ -6,6 +6,7 @@ import numpy as np
 from numpy._core._multiarray_umath import (
     _discover_array_parameters as discover_array_params,
     _get_sfloat_dtype,
+    _set_sfloat_repack_pyscalars,
 )
 from numpy.testing import assert_array_equal
 
@@ -615,3 +616,136 @@ def test_structured_field_allowed():
     arr["a"] = [1., 2.]
     assert_array_equal(arr["a"].astype(np.float64), [1., 2.])
     assert np.dtype((SF(2.), 3)).subdtype[0] == SF(2.)
+
+
+def _stored_5_in_sf3(repack):
+    # Packing 5. into SF(3.) stores 5/3; via SF(1.) and a cast it stores
+    # 5 * (1/3), which differs in the last bit.
+    return 5. / 3. if repack else 5. * (1. / 3.)
+
+
+@pytest.fixture(params=[False, True], ids=["default", "repack"])
+def repack_pyscalars(request):
+    previous = _set_sfloat_repack_pyscalars(request.param)
+    yield request.param
+    _set_sfloat_repack_pyscalars(previous)
+
+
+@pytest.mark.thread_unsafe(reason="toggles a flag on the global test DType")
+class TestRepackPyScalars:
+    # With NPY_DT_REPACK_PYSCALARS, Python scalars are converted directly to
+    # the descriptor the operation resolves, not to the default SF(1.).
+    def test_ufunc(self, repack_pyscalars):
+        a = np.array([3., 4.], dtype=SF(2.))
+        expected = np.hypot([3., 4.], 4.)
+        for args in [(a, 4.), (4., a)]:
+            if repack_pyscalars:
+                res = np.hypot(*args, casting="safe")
+                assert res.dtype == SF(2.)
+                assert_array_equal(res.astype(np.float64), expected)
+            else:
+                with pytest.raises(TypeError, match="from dtype"):
+                    np.hypot(*args, casting="safe")
+
+    @pytest.mark.parametrize("swap", [False, True])
+    def test_ufunc_bits(self, repack_pyscalars, swap):
+        b = np.zeros(1, dtype=SF(3.))
+        res = np.hypot(5., b) if swap else np.hypot(b, 5.)
+        assert res.dtype == SF(3.)
+        assert res.view(np.float64)[0] == _stored_5_in_sf3(repack_pyscalars)
+
+    def test_ufunc_at(self, repack_pyscalars):
+        b = np.zeros(2, dtype=SF(3.))
+        np.hypot.at(b, [0], 5.)
+        assert b.view(np.float64)[0] == _stored_5_in_sf3(repack_pyscalars)
+
+    def test_ufunc_out(self, repack_pyscalars):
+        b = np.zeros(1, dtype=SF(3.))
+        out = np.empty(1, dtype=SF(3.))
+        if repack_pyscalars:
+            assert np.hypot(5., b, out=out, casting="safe") is out
+            assert out.view(np.float64)[0] == 5. / 3.
+        else:
+            with pytest.raises(TypeError, match="from dtype"):
+                np.hypot(5., b, out=out, casting="safe")
+
+    def test_resolve_dtypes(self, repack_pyscalars):
+        if repack_pyscalars:
+            res = np.hypot.resolve_dtypes((SF(2.), float, None), casting="safe")
+            assert res == (SF(2.),) * 3
+        else:
+            with pytest.raises(TypeError, match="from dtype"):
+                np.hypot.resolve_dtypes((SF(2.), float, None), casting="safe")
+
+    @pytest.mark.parametrize("casting", ["no", "equiv"])
+    def test_ufunc_strict_casting(self, repack_pyscalars, casting):
+        a = np.array([3., 4.], dtype=SF(2.))
+        with pytest.raises(TypeError):
+            np.hypot(a, 4., casting=casting)
+
+    def test_ufunc_array_operand_unchanged(self, repack_pyscalars):
+        a = np.array([3., 4.], dtype=SF(2.))
+        b = np.array(4., dtype=SF(1.))
+        with pytest.raises(TypeError, match="Cannot cast ufunc 'hypot' input 1"):
+            np.hypot(a, b, casting="safe")
+
+    def test_copyto(self, repack_pyscalars):
+        a = np.zeros(2, dtype=SF(2.))
+        if repack_pyscalars:
+            np.copyto(a, 3., casting="safe")
+            assert_array_equal(a.astype(np.float64), [3., 3.])
+        else:
+            with pytest.raises(TypeError, match="according to the rule"):
+                np.copyto(a, 3., casting="safe")
+
+    def test_copyto_bits(self, repack_pyscalars):
+        b = np.zeros(1, dtype=SF(3.))
+        np.copyto(b, 5.)
+        assert b.view(np.float64)[0] == _stored_5_in_sf3(repack_pyscalars)
+
+    def test_copyto_array_unchanged(self, repack_pyscalars):
+        b = np.zeros(1, dtype=SF(3.))
+        np.copyto(b, np.array(5., dtype=SF(1.)))
+        assert b.view(np.float64)[0] == _stored_5_in_sf3(False)
+
+    def test_concatenate(self, repack_pyscalars):
+        res = np.concatenate([np.zeros(1, dtype=SF(3.)), 5.], axis=None)
+        assert res.view(np.float64)[1] == _stored_5_in_sf3(repack_pyscalars)
+
+    def test_concatenate_tiny(self, repack_pyscalars):
+        b = np.zeros(1, dtype=SF(1e-310))
+        if repack_pyscalars:
+            res = np.concatenate([b, 1e-310], axis=None)
+            assert_array_equal(res.view(np.float64), [0., 1.])
+        else:
+            with pytest.raises(TypeError, match="non-finite factor"):
+                np.concatenate([b, 1e-310], axis=None)
+
+    def test_choose(self):
+        # Only with the flag: the default path hits a debug-build assert.
+        previous = _set_sfloat_repack_pyscalars(True)
+        try:
+            res = np.choose([1], [np.zeros(1, dtype=SF(3.)), 5.])
+        finally:
+            _set_sfloat_repack_pyscalars(previous)
+        assert res.view(np.float64)[0] == 5. / 3.
+
+    def test_already_direct(self, repack_pyscalars):
+        # These paths pack into the final descriptor with or without the flag.
+        b = np.zeros(1, dtype=SF(3.))
+        assert np.where([False], b, 5.).view(np.float64)[0] == 5. / 3.
+        res = np.hypot.reduce(b, initial=5., keepdims=True)
+        assert res.view(np.float64)[0] == 5. / 3.
+        c = np.zeros(2, dtype=SF(3.))
+        c[0] = 5.
+        c[1:].fill(5.)
+        assert c.view(np.float64).tolist() == [5. / 3.] * 2
+
+    def test_full(self, repack_pyscalars):
+        # The SF(1.) to SF(1e-310) cast has a non-finite factor.
+        if repack_pyscalars:
+            res = np.full(2, 1e-310, dtype=SF(1e-310))
+            assert_array_equal(res.view(np.float64), [1., 1.])
+        else:
+            with pytest.raises(TypeError, match="non-finite factor"):
+                np.full(2, 1e-310, dtype=SF(1e-310))

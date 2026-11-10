@@ -411,6 +411,13 @@ typedef int (PyArrayMethod_PromoterFunction)(PyObject *ufunc,
 #define NPY_DT_ABSTRACT 1 << 1
 #define NPY_DT_PARAMETRIC 1 << 2
 #define NPY_DT_NUMERIC 1 << 3
+/*
+ * Python int, float, and complex values are converted directly to the
+ * descriptor an operation uses (e.g. the one `resolve_descriptors` selects)
+ * rather than to their discovered descriptor followed by a cast.
+ * NumPy < 2.6 rejects this flag, check `PyArray_RUNTIME_VERSION` first.
+ */
+#define NPY_DT_REPACK_PYSCALARS (1 << 4)
 
 /*
  * These correspond to slots in the NPY_DType_Slots struct and must

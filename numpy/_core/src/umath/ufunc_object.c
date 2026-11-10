@@ -4642,6 +4642,7 @@ resolve_descriptors(int nop,
     /* number of original_descrs entries to clean up, including NULLs */
     int n_cleanup = 0;
     PyArray_Descr *original_descrs[NPY_MAXARGS];
+    npy_bool repack_scalar[NPY_MAXARGS] = {NPY_FALSE};
 
     NPY_UF_DBG_PRINT("Resolving the descriptors\n");
 
@@ -4730,6 +4731,17 @@ resolve_descriptors(int nop,
             if (new_descr == NULL) {
                 goto finish;
             }
+            if (NPY_DTYPE(new_descr) == signature[i] &&
+                    NPY_DT_repacks_pyscalars(signature[i]) &&
+                    (PyArray_FLAGS(operands[i]) & NPY_ARRAY_WAS_PYTHON_LITERAL) &&
+                    ufuncimpl->resolve_descriptors !=
+                        &wrapped_legacy_resolve_descriptors) {
+                /* Packed below, with the resolved descriptor */
+                original_descrs[i] = new_descr;
+                n_cleanup = i + 1;
+                repack_scalar[i] = NPY_TRUE;
+                continue;
+            }
             int res = npy_update_operand_for_scalar(
                 &operands[i], input, new_descr, casting);
             Py_DECREF(new_descr);
@@ -4786,6 +4798,19 @@ resolve_descriptors(int nop,
                 "signature is not possible under the casting rule %s",
                 ufunc_get_name_cstr(ufunc), npy_casting_to_string(casting));
         goto finish;
+    }
+    for (int i = 0; i < ufunc->nin; i++) {
+        if (!repack_scalar[i]) {
+            continue;
+        }
+        /* Otherwise keep the default descriptor and its validated cast */
+        PyArray_Descr *target = NPY_DTYPE(dtypes[i]) == signature[i] ?
+                dtypes[i] : original_descrs[i];
+        if (npy_update_operand_for_scalar(
+                &operands[i], inputs == NULL ? NULL : inputs[i], target,
+                casting) < 0) {
+            goto finish;
+        }
     }
     retval = 0;
 

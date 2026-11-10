@@ -24,6 +24,7 @@
 #include "npy_sort.h"
 #include "convert_datatype.h"
 #include "dtypemeta.h"
+#include "abstractdtypes.h"
 #include "dispatching.h"
 #include "gil_utils.h"
 #include "multiarraymodule.h"
@@ -67,7 +68,8 @@ sfloat_discover_from_pyobject(PyArray_DTypeMeta *cls, PyObject *NPY_UNUSED(obj))
 static PyArray_DTypeMeta *
 sfloat_common_dtype(PyArray_DTypeMeta *cls, PyArray_DTypeMeta *other)
 {
-    if (NPY_DT_is_legacy(other) && other->type_num == NPY_DOUBLE) {
+    if ((NPY_DT_is_legacy(other) && other->type_num == NPY_DOUBLE) ||
+            other == &PyArray_PyFloatDType) {
         Py_INCREF(cls);
         return cls;
     }
@@ -1202,6 +1204,22 @@ sfloat_init_ufuncs(void) {
     promoter_dtypes[0] = double_DType;
     promoter_dtypes[1] = &PyArray_SFloatDType;
     res = sfloat_add_loop("multiply", 3, promoter_dtypes, promoter);
+    if (res < 0) {
+        Py_DECREF(promoter);
+        return -1;
+    }
+
+    /* Python floats with `hypot`, whose loop rescales all operands */
+    promoter_dtypes[0] = &PyArray_SFloatDType;
+    promoter_dtypes[1] = &PyArray_PyFloatDType;
+    res = sfloat_add_loop("hypot", 3, promoter_dtypes, promoter);
+    if (res < 0) {
+        Py_DECREF(promoter);
+        return -1;
+    }
+    promoter_dtypes[0] = &PyArray_PyFloatDType;
+    promoter_dtypes[1] = &PyArray_SFloatDType;
+    res = sfloat_add_loop("hypot", 3, promoter_dtypes, promoter);
     Py_DECREF(promoter);
     if (res < 0) {
         return -1;
@@ -1222,6 +1240,27 @@ sfloat_init_ufuncs(void) {
     }
 
     return 0;
+}
+
+
+/*
+ * Test-only switch for `NPY_DT_REPACK_PYSCALARS`, returns the previous state.
+ */
+NPY_NO_EXPORT PyObject *
+set_sfloat_repack_pyscalars(PyObject *NPY_UNUSED(mod), PyObject *arg)
+{
+    int enable = PyObject_IsTrue(arg);
+    if (enable < 0) {
+        return NULL;
+    }
+    int previous = NPY_DT_repacks_pyscalars(&PyArray_SFloatDType);
+    if (enable) {
+        PyArray_SFloatDType.flags |= NPY_DT_REPACK_PYSCALARS;
+    }
+    else {
+        PyArray_SFloatDType.flags &= ~NPY_DT_REPACK_PYSCALARS;
+    }
+    return PyBool_FromLong(previous);
 }
 
 

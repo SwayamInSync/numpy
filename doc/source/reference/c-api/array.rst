@@ -3740,6 +3740,42 @@ Flags that can be set on the ``PyArrayDTypeMeta_Spec`` to initialize the DType.
 
    Indicates the DType represents a numerical value.
 
+.. c:macro:: NPY_DT_REPACK_PYSCALARS
+
+   Changes how Python ``int``, ``float``, and ``complex`` values are
+   converted to this DType. Without the flag, NumPy converts such a value to
+   the descriptor discovered for it (usually the DType's default
+   descriptor) and later casts that to the descriptor the operation uses.
+   With the flag, NumPy converts the original Python object directly to the
+   descriptor the operation uses, so no cast from the discovered descriptor
+   takes place. This lets a parametric DType accept Python scalars when
+   casts from its default descriptor to other instances are lossy or not
+   allowed.
+
+   This applies to:
+
+   * Inputs of ufuncs with more than one input, including ``ufunc.at`` and
+     ``ufunc.resolve_dtypes``. ``resolve_descriptors`` still receives the
+     discovered descriptor for the scalar; the scalar is converted to the
+     input descriptor it returns.
+   * ``np.copyto`` and functions built on it such as ``np.full``,
+     ``np.ones``, ``np.full_like``, and ``np.ones_like``, where the scalar is
+     converted to the destination descriptor.
+   * ``np.concatenate`` with ``axis=None`` and ``np.choose``, where the
+     scalar is converted to the result descriptor.
+
+   It only takes effect when promoting the Python scalar's abstract DType
+   with this DType (see ``NPY_DT_common_dtype``) gives this DType. Under
+   ``casting="no"`` or ``"equiv"`` the scalar is still rejected unless the
+   descriptors are equivalent; otherwise the value is not cast, so
+   ``setitem`` must reject values it cannot represent.
+
+   NumPy versions before 2.6 reject unknown flags, so a DType that also
+   supports older NumPy versions should only set this flag when
+   ``PyArray_RUNTIME_VERSION >= NPY_2_6_API_VERSION``.
+
+   .. versionadded:: 2.6
+
 
 .. _dtype-slots:
 

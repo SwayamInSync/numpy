@@ -2033,6 +2033,11 @@ array_copyto(PyObject *NPY_UNUSED(ignored),
         if (descr == NULL) {
             goto fail;
         }
+        if (is_pyscalar && NPY_DTYPE(descr) == dst_DType &&
+                NPY_DT_repacks_pyscalars(dst_DType)) {
+            Py_SETREF(descr, PyArray_DESCR(dst));
+            Py_INCREF(descr);
+        }
         int res = npy_update_operand_for_scalar(&src, src_obj, descr, casting);
         Py_DECREF(descr);
         if (res < 0) {
@@ -5070,6 +5075,8 @@ static struct PyMethodDef array_module_methods[] = {
          METH_O, "Change the warn if no mem policy flag for testing."},
     {"_get_sfloat_dtype",
         get_sfloat_dtype, METH_NOARGS, NULL},
+    {"_set_sfloat_repack_pyscalars",
+        set_sfloat_repack_pyscalars, METH_O, NULL},
     {"_get_madvise_hugepage", (PyCFunction)_get_madvise_hugepage,
         METH_NOARGS, NULL},
     {"_set_madvise_hugepage", (PyCFunction)_set_madvise_hugepage,

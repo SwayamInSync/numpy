@@ -57,12 +57,13 @@ PyArrayInitDTypeMeta_FromSpec(
     }
 
     /* Check and handle flags: */
-    int allowed_flags = NPY_DT_PARAMETRIC | NPY_DT_ABSTRACT | NPY_DT_NUMERIC;
+    int allowed_flags = NPY_DT_PARAMETRIC | NPY_DT_ABSTRACT | NPY_DT_NUMERIC |
+                        NPY_DT_REPACK_PYSCALARS;
     if (spec->flags & ~(allowed_flags)) {
         PyErr_SetString(PyExc_RuntimeError,
                 "invalid DType flags specified, only NPY_DT_PARAMETRIC, "
-                "NPY_DT_ABSTRACT, and NPY_DT_NUMERIC are valid flags for "
-                "user DTypes.");
+                "NPY_DT_ABSTRACT, NPY_DT_NUMERIC, and NPY_DT_REPACK_PYSCALARS "
+                "are valid flags for user DTypes.");
         return -1;
     }
 

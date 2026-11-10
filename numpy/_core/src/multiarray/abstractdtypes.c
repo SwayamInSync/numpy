@@ -582,6 +582,12 @@ npy_update_operand_if_pyscalar(
         Py_DECREF(scalar);
         return -1;
     }
+    if ((PyArray_FLAGS(*operand) & NPY_ARRAY_WAS_PYTHON_LITERAL) &&
+            NPY_DTYPE(descr) == NPY_DTYPE(target) &&
+            NPY_DT_repacks_pyscalars(NPY_DTYPE(target))) {
+        Py_SETREF(descr, target);
+        Py_INCREF(descr);
+    }
     int res = npy_update_operand_for_scalar(operand, scalar, descr, casting);
     Py_DECREF(scalar);
     Py_DECREF(descr);

@@ -8,6 +8,8 @@
 
 NPY_NO_EXPORT PyObject *
 get_sfloat_dtype(PyObject *NPY_UNUSED(mod), PyObject *NPY_UNUSED(args));
+NPY_NO_EXPORT PyObject *
+set_sfloat_repack_pyscalars(PyObject *NPY_UNUSED(mod), PyObject *arg);
 
 PyObject * ufunc_frompyfunc(PyObject *NPY_UNUSED(dummy), PyObject *args, PyObject *NPY_UNUSED(kwds));
 

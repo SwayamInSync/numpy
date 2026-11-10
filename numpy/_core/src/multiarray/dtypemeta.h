@@ -129,6 +129,9 @@ static inline int NPY_DT_is_parametric(PyArray_DTypeMeta *dtype) {
 static inline int NPY_DT_is_numeric(PyArray_DTypeMeta *dtype) {
     return (dtype->flags & NPY_DT_NUMERIC) != 0;
 }
+static inline int NPY_DT_repacks_pyscalars(PyArray_DTypeMeta *dtype) {
+    return (dtype->flags & NPY_DT_REPACK_PYSCALARS) != 0;
+}
 static inline int NPY_DT_is_user_defined(PyArray_DTypeMeta *dtype) {
     // New-style user defined dtypes have a type_num of -1 also on DType
     return dtype->type_num == -1;
